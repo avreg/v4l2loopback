@@ -111,7 +111,7 @@ module_param(max_openers, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_openers, "how many users can open loopback device");
 
 
-#define MAX_DEVICES 8
+#define MAX_DEVICES 32
 static int devices = -1;
 module_param(devices, int, 0);
 MODULE_PARM_DESC(devices, "how many devices should be created");
