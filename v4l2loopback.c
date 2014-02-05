@@ -53,7 +53,9 @@ void *v4l2l_vzalloc(unsigned long size)
 #include <linux/slab.h>
 
 #define V4L2LOOPBACK_VERSION_CODE KERNEL_VERSION(0, 8, 0)
-
+#ifndef MODULE_NAME
+#	define MODULE_NAME "v4l2loopback"
+#endif
 
 MODULE_DESCRIPTION("V4L2 loopback video device");
 MODULE_AUTHOR("Vasily Levin, " \
@@ -70,7 +72,7 @@ MODULE_LICENSE("GPL");
 
 #define dprintk(fmt, args...)                                           \
 	do { if (debug > 0) {                                                 \
-		printk(KERN_INFO "v4l2-loopback[" STRINGIFY2(__LINE__) "]: " fmt, ##args); \
+		printk(KERN_INFO MODULE_NAME "[" STRINGIFY2(__LINE__) "]: " fmt, ##args); \
 	} } while (0)
 
 #define MARK()                                                          \
@@ -80,7 +82,7 @@ MODULE_LICENSE("GPL");
 
 #define dprintkrw(fmt, args...)                                         \
 	do { if (debug > 2) {                                                 \
-		printk(KERN_INFO "v4l2-loopback[" STRINGIFY2(__LINE__)"]: " fmt, ##args); \
+		printk(KERN_INFO MODULE_NAME "[" STRINGIFY2(__LINE__)"]: " fmt, ##args); \
 	} } while (0)
 
 
@@ -108,30 +110,30 @@ MODULE_PARM_DESC(max_buffers, "how many buffers should be allocated");
  */
 static int max_openers = 10;
 module_param(max_openers, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(max_openers, "how many users can open loopback device");
+MODULE_PARM_DESC(max_openers, " how many users can open loopback device");
 
 
 #define MAX_DEVICES 32
 static int devices = -1;
 module_param(devices, int, 0);
-MODULE_PARM_DESC(devices, "how many devices should be created");
+MODULE_PARM_DESC(devices, " how many devices should be created");
 
 static int initial_nr = 0;
 module_param(initial_nr, int, 0);
-MODULE_PARM_DESC(initial_nr, "initial nubmer of device should be created if \"devices\" value > 0");
+MODULE_PARM_DESC(initial_nr, " initial nubmer of device should be created if \"devices\" value > 0");
 
 static int video_nr[MAX_DEVICES] = { [0 ... (MAX_DEVICES - 1)] = -1 };
 module_param_array(video_nr, int, NULL, 0444);
-MODULE_PARM_DESC(video_nr, "video device numbers (-1=auto, 0=/dev/video0, etc.)");
+MODULE_PARM_DESC(video_nr, " video device numbers (-1=auto, 0=/dev/video0, etc.)");
 
 static char *card_label[MAX_DEVICES];
 module_param_array(card_label, charp, NULL, 0000);
-MODULE_PARM_DESC(card_label, "card labels for every device");
+MODULE_PARM_DESC(card_label, " card labels for every device");
 
 static bool exclusive_caps[MAX_DEVICES] = { [0 ... (MAX_DEVICES - 1)] = 1 };
 module_param_array(exclusive_caps, bool, NULL, 0444);
 /* FIXXME: wording */
-MODULE_PARM_DESC(exclusive_caps, "whether to announce OUTPUT/CAPTURE capabilities exclusively or not");
+MODULE_PARM_DESC(exclusive_caps, " whether to announce OUTPUT/CAPTURE capabilities exclusively or not");
 
 
 /* format specifications */
@@ -549,7 +551,7 @@ static struct v4l2_loopback_device *v4l2loopback_cd2dev(struct device *cd)
 	int nr = ptr->devicenr;
 
 	if (nr < 0 || nr >= devices) {
-		printk(KERN_ERR "v4l2-loopback: illegal device %d\n", nr);
+		printk(KERN_ERR MODULE_NAME ": illegal device %d\n", nr);
 		return NULL;
 	}
 	return devs[nr];
@@ -563,7 +565,7 @@ static struct v4l2_loopback_device *v4l2loopback_getdevice(struct file *f)
 	int nr = ptr->devicenr;
 
 	if (nr < 0 || nr >= devices) {
-		printk(KERN_ERR "v4l2-loopback: illegal device %d\n", nr);
+		printk(KERN_ERR MODULE_NAME ": illegal device %d\n", nr);
 		return NULL;
 	}
 	return devs[nr];
@@ -616,7 +618,7 @@ static int vidioc_querycap(struct file *file, void *priv, struct v4l2_capability
 		snprintf(cap->card, sizeof(cap->card), "Dummy video device (0x%04X)", devnr);
 	}
 
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "v4l2loopback:%d", devnr);
+	snprintf(cap->bus_info, sizeof(cap->bus_info), MODULE_NAME ":%d", devnr);
 
 	cap->version = V4L2LOOPBACK_VERSION_CODE;
 	cap->capabilities =
@@ -2071,10 +2073,10 @@ static int v4l2_loopback_init(struct v4l2_loopback_device *dev, int nr)
 {
 	int ret;
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
-                        "v4l2loopback-%03d", nr);
-        ret = v4l2_device_register(NULL, &dev->v4l2_dev);
-        if (ret)
-                return ret;
+			MODULE_NAME "-%03d", nr);
+	ret = v4l2_device_register(NULL, &dev->v4l2_dev);
+	if (ret)
+		return ret;
 
 	MARK();
 	dev->vdev = video_device_alloc();
@@ -2249,7 +2251,7 @@ int __init init_module(void)
 
 	if (devices > MAX_DEVICES) {
 		devices = MAX_DEVICES;
-		printk(KERN_INFO "v4l2loopback: number of devices is limited to: %d\n", MAX_DEVICES);
+		printk(KERN_WARNING MODULE_NAME ": number of devices is limited to: %d\n", MAX_DEVICES);
 	}
 
 	if (devices <= 0) {
@@ -2268,21 +2270,21 @@ int __init init_module(void)
 
 	if (max_buffers > MAX_BUFFERS) {
 		max_buffers = MAX_BUFFERS;
-		printk(KERN_INFO "v4l2loopback: number of buffers is limited to: %d\n", MAX_BUFFERS);
+		printk(KERN_WARNING MODULE_NAME ": number of buffers is limited to: %d\n", MAX_BUFFERS);
 	}
 
 	if (max_openers < 0) {
-		printk(KERN_INFO "v4l2loopback: allowing %d openers rather than %d\n", 2, max_openers);
+		printk(KERN_WARNING MODULE_NAME ": allowing %d openers rather than %d\n", 2, max_openers);
 		max_openers = 2;
 	}
 
 	if (max_width < 1) {
 		max_width = V4L2LOOPBACK_SIZE_MAX_WIDTH;
-		printk(KERN_INFO "v4l2loopback: using max_width %d\n", max_width);
+		printk(KERN_WARNING MODULE_NAME ": using max_width %d\n", max_width);
 	}
 	if (max_height < 1) {
 		max_height = V4L2LOOPBACK_SIZE_MAX_HEIGHT;
-		printk(KERN_INFO "v4l2loopback: using max_height %d\n", max_height);
+		printk(KERN_WARNING MODULE_NAME ": using max_height %d\n", max_height);
 	}
 
 	/* kfree on module release */
@@ -2301,7 +2303,7 @@ int __init init_module(void)
 		/* register the device -> it creates /dev/video* */
 		if (video_register_device(devs[i]->vdev, VFL_TYPE_GRABBER, video_nr[i]) < 0) {
 			video_device_release(devs[i]->vdev);
-			printk(KERN_ERR "v4l2loopback: failed video_register_device()\n");
+			printk(KERN_ERR MODULE_NAME ": failed video_register_device()\n");
 			free_devices();
 			return -EFAULT;
 		}
@@ -2310,7 +2312,7 @@ int __init init_module(void)
 
 	dprintk("module installed\n");
 
-	printk(KERN_INFO "v4l2loopback driver version %d.%d.%d loaded\n",
+	printk(KERN_INFO MODULE_NAME " driver version %d.%d.%d loaded\n",
 			(V4L2LOOPBACK_VERSION_CODE >> 16) & 0xff,
 			(V4L2LOOPBACK_VERSION_CODE >>  8) & 0xff,
 			(V4L2LOOPBACK_VERSION_CODE) & 0xff);
