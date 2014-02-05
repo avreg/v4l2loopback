@@ -116,6 +116,9 @@ static int devices = -1;
 module_param(devices, int, 0);
 MODULE_PARM_DESC(devices, "how many devices should be created");
 
+static int initial_nr = 0;
+module_param(initial_nr, int, 0);
+MODULE_PARM_DESC(initial_nr, "initial nubmer of device should be created if \"devices\" value > 0");
 
 static int video_nr[MAX_DEVICES] = { [0 ... (MAX_DEVICES - 1)] = -1 };
 module_param_array(video_nr, int, NULL, 0444);
@@ -2243,9 +2246,14 @@ int __init init_module(void)
 	MARK();
 
 	zero_devices();
-	if (devices < 0) {
-		devices = 1;
 
+	if (devices > MAX_DEVICES) {
+		devices = MAX_DEVICES;
+		printk(KERN_INFO "v4l2loopback: number of devices is limited to: %d\n", MAX_DEVICES);
+	}
+
+	if (devices <= 0) {
+		devices = 1;
 		/* try guessing the devices from the "video_nr" parameter */
 		for (i = MAX_DEVICES - 1; i >= 0; i--) {
 			if (video_nr[i] >= 0) {
@@ -2253,11 +2261,9 @@ int __init init_module(void)
 				break;
 			}
 		}
-	}
-
-	if (devices > MAX_DEVICES) {
-		devices = MAX_DEVICES;
-		printk(KERN_INFO "v4l2loopback: number of devices is limited to: %d\n", MAX_DEVICES);
+	} else {
+		for (i = 0; i < devices; i++)
+			video_nr[i] = initial_nr + i;
 	}
 
 	if (max_buffers > MAX_BUFFERS) {
@@ -2319,4 +2325,4 @@ void __exit cleanup_module(void)
 	free_devices();
 	dprintk("module removed\n");
 }
-
+/* vim: set noet tabstop=3 shiftwidth=3: */
